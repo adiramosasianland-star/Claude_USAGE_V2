@@ -30,9 +30,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     window.addEventListener('click', e => {
-        if (e.target.id === 'addModal') closeAddModal();
-        if (e.target.id === 'cooldownModal') closeCooldownModal();
-        if (e.target.id === 'deleteModal') closeDeleteModal();
+        if (e.target.classList.contains('modal')) {
+            closeAddModal(); closeCooldownModal(); closeDeleteModal();
+        }
     });
 
     document.getElementById('loginForm').addEventListener('keydown', e => {
@@ -244,26 +244,34 @@ async function clearCooldown(id) {
 
 function renderAccounts(accounts) {
     const grid = document.getElementById('accountsGrid');
+    const countEl = document.getElementById('accountCount');
 
     if (!accounts.length) {
-        grid.innerHTML = `<div class="empty-state"><h3>No accounts yet</h3><p>Click "Add Account" to get started</p></div>`;
+        grid.innerHTML = `<div class="empty-state"><h3>No accounts yet</h3><p>Add an account to get started</p></div>`;
+        if (countEl) countEl.textContent = '0 accounts';
         return;
     }
 
-    grid.innerHTML = accounts.map(account => {
+    const available = accounts.filter(a => getAccountStatus(a).class === 'available').length;
+    if (countEl) countEl.textContent = `${available} available / ${accounts.length} total`;
+
+    grid.innerHTML = accounts.map((account, i) => {
         const status = getAccountStatus(account);
         return `
-            <div class="account-card ${status.class}">
-                <div class="account-email">${escapeHtml(account.email)}</div>
-                <div class="account-status">
-                    <span class="status-badge ${status.class}">${status.label}</span>
-                    ${status.countdown ? `<span class="cooldown-time">${status.countdown}</span>` : ''}
+            <div class="account-card ${status.class}" style="animation-delay:${i * 40}ms">
+                <div class="card-top">
+                    <div class="account-email">${escapeHtml(account.email)}</div>
+                    <div class="status-dot ${status.class}"></div>
                 </div>
-                ${status.usageInfo ? `<div class="account-last-used"><small>${status.usageInfo}</small></div>` : ''}
-                <div class="account-actions">
-                    ${status.canUse ? `<button class="btn btn-secondary btn-small" onclick="openCooldownModal(${account.id})">Set Cooldown</button>` : ''}
-                    ${status.hasCooldown ? `<button class="btn btn-warning btn-small" onclick="clearCooldown(${account.id})">Clear Cooldown</button>` : ''}
-                    <button class="btn btn-danger btn-small" onclick="openDeleteModal(${account.id})">Delete</button>
+                <div class="card-status">
+                    <div class="status-label ${status.class}">${status.label}</div>
+                    ${status.countdown ? `<div class="status-info">${status.countdown}</div>` : ''}
+                    ${status.usageInfo ? `<div class="status-info">${status.usageInfo}</div>` : ''}
+                </div>
+                <div class="card-actions">
+                    ${status.canUse ? `<button class="btn btn-ghost btn-sm" onclick="openCooldownModal(${account.id})">Set cooldown</button>` : ''}
+                    ${status.hasCooldown ? `<button class="btn btn-warning btn-sm" onclick="clearCooldown(${account.id})">Clear</button>` : ''}
+                    <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${account.id})">Delete</button>
                 </div>
             </div>
         `;
@@ -300,8 +308,8 @@ function getAccountStatus(account) {
 
 // ── MODALS ────────────────────────────────────────────────────────────────────
 
-function showAddModal() { document.getElementById('addModal').style.display = 'block'; }
-function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
+function showAddModal() { document.getElementById('addModal').classList.add('active'); }
+function closeAddModal() { document.getElementById('addModal').classList.remove('active'); }
 
 function openCooldownModal(id) {
     document.getElementById('cooldownId').value = id;
@@ -309,19 +317,19 @@ function openCooldownModal(id) {
     document.getElementById('cooldownDate').value = today.toISOString().split('T')[0];
     document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
     document.getElementById('cooldownHour').value = '';
-    document.getElementById('cooldownModal').style.display = 'block';
+    document.getElementById('cooldownModal').classList.add('active');
 }
 
-function closeCooldownModal() { document.getElementById('cooldownModal').style.display = 'none'; }
+function closeCooldownModal() { document.getElementById('cooldownModal').classList.remove('active'); }
 
 function openDeleteModal(id) {
     accountToDelete = id;
-    document.getElementById('deleteModal').style.display = 'block';
+    document.getElementById('deleteModal').classList.add('active');
 }
 
 function closeDeleteModal() {
     accountToDelete = null;
-    document.getElementById('deleteModal').style.display = 'none';
+    document.getElementById('deleteModal').classList.remove('active');
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
