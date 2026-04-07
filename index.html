@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claude Account Tracker</title>
+    <title>Claude · Accounts</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
 
@@ -18,7 +19,7 @@
                 <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
                 <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
                 <div id="loginError" class="login-error"></div>
-                <button id="loginBtn" class="btn btn-primary" onclick="login()">Sign In</button>
+                <button id="loginBtn" class="btn btn-primary" onclick="login()">Sign in</button>
             </div>
         </div>
     </div>
@@ -27,11 +28,19 @@
     <div id="appScreen">
 
         <nav class="navbar">
-            <div class="navbar-brand">
+            <a class="navbar-brand" href="index.html">
                 <div class="navbar-dot"></div>
                 claude / accounts
-            </div>
+            </a>
             <div class="navbar-actions">
+                <a id="usersNavLink" href="users.html" class="navbar-link" style="display:none;">
+                    <i data-lucide="users" style="width:13px;height:13px;"></i>
+                    Users
+                </a>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                    <i data-lucide="sun" id="themeIconLight"></i>
+                    <i data-lucide="moon" id="themeIconDark" style="display:none;"></i>
+                </button>
                 <button class="btn btn-ghost btn-sm" onclick="logout()">Sign out</button>
             </div>
         </nav>
@@ -42,7 +51,10 @@
                     <div class="page-title">Accounts</div>
                     <div class="page-subtitle" id="accountCount">—</div>
                 </div>
-                <button class="btn btn-primary" onclick="showAddModal()">+ Add account</button>
+                <button class="btn btn-primary" onclick="showAddModal()">
+                    <i data-lucide="plus"></i>
+                    Add account
+                </button>
             </div>
 
             <div class="accounts-grid" id="accountsGrid">
@@ -61,7 +73,10 @@
             <div class="form-group">
                 <label>Email address</label>
                 <input type="email" id="newEmail" placeholder="you@example.com">
-                <button class="btn btn-primary" onclick="addAccount()">Add account</button>
+                <button class="btn btn-primary" onclick="addAccount()">
+                    <i data-lucide="plus"></i>
+                    Add account
+                </button>
             </div>
         </div>
     </div>
@@ -105,7 +120,10 @@
                 </div>
                 <input type="hidden" id="cooldownHour">
                 <input type="hidden" id="cooldownId">
-                <button class="btn btn-primary" onclick="setCooldown()">Set cooldown</button>
+                <button class="btn btn-primary" onclick="setCooldown()">
+                    <i data-lucide="clock"></i>
+                    Set cooldown
+                </button>
             </div>
         </div>
     </div>
@@ -119,7 +137,10 @@
             <p class="modal-desc">This will permanently remove the account. This action cannot be undone.</p>
             <div class="modal-actions">
                 <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
-                <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">
+                    <i data-lucide="trash-2"></i>
+                    Delete
+                </button>
             </div>
         </div>
     </div>

@@ -6,7 +6,7 @@ const AUTH_URL = `${SUPABASE_URL}/auth/v1`;
 let currentSession = null;
 let accountToDelete = null;
 
-// ── AUTH HEADERS ─────────────────────────────────────────────────────────────
+// ── AUTH HEADERS ──────────────────────────────────────────────────────────────
 
 function getHeaders(session = currentSession) {
     return {
@@ -16,11 +16,37 @@ function getHeaders(session = currentSession) {
     };
 }
 
-// ── INIT ─────────────────────────────────────────────────────────────────────
+// ── THEME ─────────────────────────────────────────────────────────────────────
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const light = document.getElementById('themeIconLight');
+    const dark  = document.getElementById('themeIconDark');
+    if (light && dark) {
+        light.style.display = theme === 'dark' ? 'none' : '';
+        dark.style.display  = theme === 'dark' ? '' : 'none';
+    }
+    localStorage.setItem('theme', theme);
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(current === 'light' ? 'dark' : 'light');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Restore theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
+
     await restoreSession();
 
+    // Lucide icons
+    if (window.lucide) lucide.createIcons();
+
+    // Time buttons
     document.querySelectorAll('.time-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
@@ -29,12 +55,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
+    // Close modals on backdrop click
     window.addEventListener('click', e => {
         if (e.target.classList.contains('modal')) {
-            closeAddModal(); closeCooldownModal(); closeDeleteModal();
+            closeAddModal();
+            closeCooldownModal();
+            closeDeleteModal();
         }
     });
 
+    // Login on Enter
     document.getElementById('loginForm').addEventListener('keydown', e => {
         if (e.key === 'Enter') login();
     });
@@ -48,13 +78,12 @@ async function restoreSession() {
 
     const session = JSON.parse(stored);
 
-    // Check if token is expired
     if (Date.now() / 1000 > session.expires_at) {
         const refreshed = await refreshSession(session.refresh_token);
         if (!refreshed) return showLogin();
     } else {
         currentSession = session;
-        showApp();
+        await showApp();
     }
 }
 
@@ -69,7 +98,7 @@ async function refreshSession(refresh_token) {
         const data = await res.json();
         currentSession = data;
         localStorage.setItem('sb_session', JSON.stringify(data));
-        showApp();
+        await showApp();
         return true;
     } catch {
         return false;
@@ -79,10 +108,10 @@ async function refreshSession(refresh_token) {
 // ── LOGIN / LOGOUT ────────────────────────────────────────────────────────────
 
 async function login() {
-    const email = document.getElementById('loginEmail').value.trim();
+    const email    = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
-    const btn = document.getElementById('loginBtn');
-    const error = document.getElementById('loginError');
+    const btn      = document.getElementById('loginBtn');
+    const error    = document.getElementById('loginError');
 
     if (!email || !password) {
         error.textContent = 'Please enter your email and password.';
@@ -101,16 +130,15 @@ async function login() {
         });
 
         const data = await res.json();
-
         if (!res.ok) throw new Error(data.error_description || data.msg || 'Login failed');
 
         currentSession = data;
         localStorage.setItem('sb_session', JSON.stringify(data));
-        showApp();
+        await showApp();
     } catch (err) {
         error.textContent = err.message;
     } finally {
-        btn.textContent = 'Sign In';
+        btn.textContent = 'Sign in';
         btn.disabled = false;
     }
 }
@@ -132,33 +160,56 @@ async function logout() {
 
 function showLogin() {
     document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('appScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display   = 'none';
 }
 
-function showApp() {
+async function showApp() {
     document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
+    document.getElementById('appScreen').style.display   = 'block';
+
+    await checkAdminStatus();
+
+    if (window.lucide) lucide.createIcons();
+
     loadAccounts();
     setInterval(loadAccounts, 30000);
+}
+
+// ── ADMIN CHECK ───────────────────────────────────────────────────────────────
+
+async function checkAdminStatus() {
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=is_admin`, {
+            headers: getHeaders(),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.length && data[0].is_admin) {
+            const link = document.getElementById('usersNavLink');
+            if (link) link.style.display = 'inline-flex';
+        }
+    } catch {}
 }
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
 
 async function loadAccounts() {
     try {
-        const res = await fetch(`${API}?select=*&order=cooldown_until.asc.nullsfirst`, { headers: getHeaders() });
+        const res = await fetch(`${API}?select=*&order=cooldown_until.asc.nullsfirst`, {
+            headers: getHeaders(),
+        });
         if (res.status === 401) return logout();
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         renderAccounts(data);
     } catch (err) {
-        showToast('Failed to load accounts: ' + err.message, true);
+        showToast('Failed to load accounts: ' + err.message, 'error');
     }
 }
 
 async function addAccount() {
     const email = document.getElementById('newEmail').value.trim();
-    if (!email) return showToast('Email is required', true);
+    if (!email) return showToast('Email is required', 'error');
 
     try {
         const res = await fetch(API, {
@@ -176,7 +227,7 @@ async function addAccount() {
         showToast('Account added');
         loadAccounts();
     } catch (err) {
-        showToast(err.message, true);
+        showToast(err.message, 'error');
     }
 }
 
@@ -193,19 +244,19 @@ async function confirmDelete() {
         showToast('Account deleted');
         loadAccounts();
     } catch (err) {
-        showToast(err.message, true);
+        showToast(err.message, 'error');
     }
 }
 
 async function setCooldown() {
-    const id = document.getElementById('cooldownId').value;
+    const id   = document.getElementById('cooldownId').value;
     const date = document.getElementById('cooldownDate').value;
     const hour = document.getElementById('cooldownHour').value;
 
-    if (!date) return showToast('Please select a date', true);
-    if (hour === '') return showToast('Please select a time', true);
+    if (!date) return showToast('Please select a date', 'error');
+    if (hour === '') return showToast('Please select a time', 'error');
 
-    const hourPadded = String(hour).padStart(2, '0');
+    const hourPadded    = String(hour).padStart(2, '0');
     const cooldown_until = new Date(`${date}T${hourPadded}:00:00`).toISOString();
 
     try {
@@ -220,7 +271,7 @@ async function setCooldown() {
         showToast('Cooldown set');
         loadAccounts();
     } catch (err) {
-        showToast(err.message, true);
+        showToast(err.message, 'error');
     }
 }
 
@@ -236,85 +287,89 @@ async function clearCooldown(id) {
         showToast('Cooldown cleared');
         loadAccounts();
     } catch (err) {
-        showToast(err.message, true);
+        showToast(err.message, 'error');
     }
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
 
 function renderAccounts(accounts) {
-    const grid = document.getElementById('accountsGrid');
+    const grid    = document.getElementById('accountsGrid');
     const countEl = document.getElementById('accountCount');
 
     if (!accounts.length) {
-        grid.innerHTML = `<div class="empty-state"><h3>No accounts yet</h3><p>Add an account to get started</p></div>`;
+        grid.innerHTML = `
+            <div class="empty-state">
+                <h3>No accounts yet</h3>
+                <p>Add an account to get started</p>
+            </div>`;
         if (countEl) countEl.textContent = '0 accounts';
         return;
     }
 
-    const available = accounts.filter(a => getAccountStatus(a).class === 'available').length;
-    if (countEl) countEl.textContent = `${available} available / ${accounts.length} total`;
+    const available = accounts.filter(a => getAccountStatus(a).type === 'available').length;
+    if (countEl) countEl.textContent = `${available} available · ${accounts.length} total`;
 
     grid.innerHTML = accounts.map((account, i) => {
         const status = getAccountStatus(account);
         return `
-            <div class="account-card ${status.class}" style="animation-delay:${i * 40}ms">
+            <div class="account-card ${status.type}" style="animation-delay:${i * 35}ms">
                 <div class="card-top">
                     <div class="account-email">${escapeHtml(account.email)}</div>
-                    <div class="status-dot ${status.class}"></div>
+                    <div class="status-pip ${status.type}"></div>
                 </div>
                 <div class="card-status">
-                    <div class="status-label ${status.class}">${status.label}</div>
-                    ${status.countdown ? `<div class="status-info">${status.countdown}</div>` : ''}
-                    ${status.usageInfo ? `<div class="status-info">${status.usageInfo}</div>` : ''}
+                    <div class="status-label ${status.type}">${status.label}</div>
+                    ${status.countdown  ? `<div class="status-info">${status.countdown}</div>`  : ''}
+                    ${status.usageInfo  ? `<div class="status-info">${status.usageInfo}</div>`  : ''}
                 </div>
                 <div class="card-actions">
-                    ${status.canUse ? `<button class="btn btn-ghost btn-sm" onclick="openCooldownModal(${account.id})">Set cooldown</button>` : ''}
-                    ${status.hasCooldown ? `<button class="btn btn-warning btn-sm" onclick="clearCooldown(${account.id})">Clear</button>` : ''}
-                    <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${account.id})">Delete</button>
+                    ${status.canUse     ? `<button class="btn btn-ghost btn-sm" onclick="openCooldownModal(${account.id})"><i data-lucide="clock" style="width:12px;height:12px;"></i> Set cooldown</button>` : ''}
+                    ${status.hasCooldown ? `<button class="btn btn-warning btn-sm" onclick="clearCooldown(${account.id})"><i data-lucide="x" style="width:12px;height:12px;"></i> Clear</button>` : ''}
+                    <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${account.id})"><i data-lucide="trash-2" style="width:12px;height:12px;"></i> Delete</button>
                 </div>
-            </div>
-        `;
+            </div>`;
     }).join('');
+
+    if (window.lucide) lucide.createIcons();
 }
 
 function getAccountStatus(account) {
-    const now = new Date();
+    const now          = new Date();
     const cooldownUntil = account.cooldown_until ? new Date(account.cooldown_until) : null;
 
     if (cooldownUntil && cooldownUntil > now) {
-        const diff = cooldownUntil - now;
-        const hours = Math.floor(diff / 1000 / 60 / 60);
+        const diff    = cooldownUntil - now;
+        const hours   = Math.floor(diff / 1000 / 60 / 60);
         const minutes = Math.floor((diff / 1000 / 60) % 60);
         return {
-            class: 'cooldown',
+            type: 'cooldown',
             label: 'Unavailable',
             canUse: false,
             hasCooldown: true,
-            countdown: `Available at ${formatDateTime(cooldownUntil)} (${hours}h ${minutes}m)`,
+            countdown: `Available ${formatDateTime(cooldownUntil)} · ${hours}h ${minutes}m`,
             usageInfo: null,
         };
     }
 
     return {
-        class: 'available',
+        type: 'available',
         label: 'Available',
         canUse: true,
         hasCooldown: false,
         countdown: null,
-        usageInfo: cooldownUntil ? `Cooldown ended: ${formatDateTime(cooldownUntil)}` : 'Never used',
+        usageInfo: cooldownUntil ? `Last cooldown ended ${formatDateTime(cooldownUntil)}` : 'Never used',
     };
 }
 
 // ── MODALS ────────────────────────────────────────────────────────────────────
 
-function showAddModal() { document.getElementById('addModal').classList.add('active'); }
-function closeAddModal() { document.getElementById('addModal').classList.remove('active'); }
+function showAddModal()    { document.getElementById('addModal').classList.add('active'); }
+function closeAddModal()   { document.getElementById('addModal').classList.remove('active'); }
 
 function openCooldownModal(id) {
-    document.getElementById('cooldownId').value = id;
-    const today = new Date();
-    document.getElementById('cooldownDate').value = today.toISOString().split('T')[0];
+    document.getElementById('cooldownId').value   = id;
+    document.getElementById('cooldownDate').value = new Date().toISOString().split('T')[0];
     document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
     document.getElementById('cooldownHour').value = '';
     document.getElementById('cooldownModal').classList.add('active');
@@ -335,18 +390,23 @@ function closeDeleteModal() {
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 
 function formatDateTime(date) {
-    return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    return date.toLocaleString('en-US', {
+        month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true,
+    });
 }
 
 function escapeHtml(text) {
-    return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+    return text.replace(/[&<>"']/g, m => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]
+    ));
 }
 
 let toastTimer;
-function showToast(msg, isError = false) {
+function showToast(msg, type = 'success') {
     const toast = document.getElementById('toast');
     toast.textContent = msg;
-    toast.className = 'toast show' + (isError ? ' error' : '');
+    toast.className   = `toast show${type === 'error' ? ' error' : ''}`;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.className = 'toast', 3000);
+    toastTimer = setTimeout(() => { toast.className = 'toast'; }, 3000);
 }

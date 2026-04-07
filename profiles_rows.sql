@@ -1,0 +1,1 @@
+INSERT INTO "public"."profiles" ("id", "email", "is_admin", "is_active", "created_at") VALUES ('e1c6caef-c9a4-4569-a0cb-224d5e69f12e', 'ardenarthurramos@gmail.com', true, true, '2026-04-07 07:04:19.582424+00');
