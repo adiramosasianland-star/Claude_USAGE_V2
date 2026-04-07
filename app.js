@@ -179,7 +179,9 @@ async function showApp() {
 
 async function checkAdminStatus() {
     try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=is_admin`, {
+        const userId = currentSession?.user?.id;
+        if (!userId) return;
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=is_admin&id=eq.${userId}`, {
             headers: getHeaders(),
         });
         if (!res.ok) return;
@@ -187,6 +189,7 @@ async function checkAdminStatus() {
         if (data.length && data[0].is_admin) {
             const link = document.getElementById('usersNavLink');
             if (link) link.style.display = 'inline-flex';
+            if (window.lucide) lucide.createIcons();
         }
     } catch {}
 }
