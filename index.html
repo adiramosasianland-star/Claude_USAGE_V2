@@ -7,79 +7,100 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
+
+    <!-- Login Screen -->
+    <div id="loginScreen" style="display:flex;">
+        <div class="login-box">
             <h1>Claude Account Tracker</h1>
-            <button class="btn btn-primary" onclick="showAddModal()">+ Add Account</button>
-        </div>
-
-        <div class="accounts-grid" id="accountsGrid">
-            <div class="loading">Loading accounts...</div>
-        </div>
-    </div>
-
-    <!-- Add Account Modal -->
-    <div id="addModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeAddModal()">&times;</span>
-            <h2>Add New Account</h2>
-            <div class="form-group">
-                <input type="email" id="newEmail" placeholder="Email address">
-                <button class="btn btn-primary" onclick="addAccount()">Add Account</button>
+            <p class="login-subtitle">Sign in to continue</p>
+            <div id="loginForm" class="form-group">
+                <input type="email" id="loginEmail" placeholder="Email address" autocomplete="email">
+                <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+                <div id="loginError" class="login-error"></div>
+                <button id="loginBtn" class="btn btn-primary" onclick="login()">Sign In</button>
             </div>
         </div>
     </div>
 
-    <!-- Set Cooldown Modal -->
-    <div id="cooldownModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeCooldownModal()">&times;</span>
-            <h2>Set Available Time</h2>
-            <div class="form-group">
-                <label>Account will be available at:</label>
-                <input type="date" id="cooldownDate">
-                <label>Select Time:</label>
-                <div class="time-grid">
-                    <button type="button" class="time-btn" data-hour="0">12 AM</button>
-                    <button type="button" class="time-btn" data-hour="1">1 AM</button>
-                    <button type="button" class="time-btn" data-hour="2">2 AM</button>
-                    <button type="button" class="time-btn" data-hour="3">3 AM</button>
-                    <button type="button" class="time-btn" data-hour="4">4 AM</button>
-                    <button type="button" class="time-btn" data-hour="5">5 AM</button>
-                    <button type="button" class="time-btn" data-hour="6">6 AM</button>
-                    <button type="button" class="time-btn" data-hour="7">7 AM</button>
-                    <button type="button" class="time-btn" data-hour="8">8 AM</button>
-                    <button type="button" class="time-btn" data-hour="9">9 AM</button>
-                    <button type="button" class="time-btn" data-hour="10">10 AM</button>
-                    <button type="button" class="time-btn" data-hour="11">11 AM</button>
-                    <button type="button" class="time-btn" data-hour="12">12 PM</button>
-                    <button type="button" class="time-btn" data-hour="13">1 PM</button>
-                    <button type="button" class="time-btn" data-hour="14">2 PM</button>
-                    <button type="button" class="time-btn" data-hour="15">3 PM</button>
-                    <button type="button" class="time-btn" data-hour="16">4 PM</button>
-                    <button type="button" class="time-btn" data-hour="17">5 PM</button>
-                    <button type="button" class="time-btn" data-hour="18">6 PM</button>
-                    <button type="button" class="time-btn" data-hour="19">7 PM</button>
-                    <button type="button" class="time-btn" data-hour="20">8 PM</button>
-                    <button type="button" class="time-btn" data-hour="21">9 PM</button>
-                    <button type="button" class="time-btn" data-hour="22">10 PM</button>
-                    <button type="button" class="time-btn" data-hour="23">11 PM</button>
+    <!-- App Screen -->
+    <div id="appScreen" style="display:none;">
+        <div class="container">
+            <div class="header">
+                <h1>Claude Account Tracker</h1>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-primary" onclick="showAddModal()">+ Add Account</button>
+                    <button class="btn btn-secondary" onclick="logout()">Logout</button>
                 </div>
-                <input type="hidden" id="cooldownHour">
-                <input type="hidden" id="cooldownId">
-                <button class="btn btn-primary" onclick="setCooldown()">Set Time</button>
+            </div>
+
+            <div class="accounts-grid" id="accountsGrid">
+                <div class="loading">Loading accounts...</div>
             </div>
         </div>
-    </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal">
-        <div class="modal-content modal-small">
-            <h2>Confirm Delete</h2>
-            <p>Are you sure you want to delete this account? This action cannot be undone.</p>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
-                <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+        <!-- Add Account Modal -->
+        <div id="addModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeAddModal()">&times;</span>
+                <h2>Add New Account</h2>
+                <div class="form-group">
+                    <input type="email" id="newEmail" placeholder="Email address">
+                    <button class="btn btn-primary" onclick="addAccount()">Add Account</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Set Cooldown Modal -->
+        <div id="cooldownModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeCooldownModal()">&times;</span>
+                <h2>Set Available Time</h2>
+                <div class="form-group">
+                    <label>Account will be available at:</label>
+                    <input type="date" id="cooldownDate">
+                    <label>Select Time:</label>
+                    <div class="time-grid">
+                        <button type="button" class="time-btn" data-hour="0">12 AM</button>
+                        <button type="button" class="time-btn" data-hour="1">1 AM</button>
+                        <button type="button" class="time-btn" data-hour="2">2 AM</button>
+                        <button type="button" class="time-btn" data-hour="3">3 AM</button>
+                        <button type="button" class="time-btn" data-hour="4">4 AM</button>
+                        <button type="button" class="time-btn" data-hour="5">5 AM</button>
+                        <button type="button" class="time-btn" data-hour="6">6 AM</button>
+                        <button type="button" class="time-btn" data-hour="7">7 AM</button>
+                        <button type="button" class="time-btn" data-hour="8">8 AM</button>
+                        <button type="button" class="time-btn" data-hour="9">9 AM</button>
+                        <button type="button" class="time-btn" data-hour="10">10 AM</button>
+                        <button type="button" class="time-btn" data-hour="11">11 AM</button>
+                        <button type="button" class="time-btn" data-hour="12">12 PM</button>
+                        <button type="button" class="time-btn" data-hour="13">1 PM</button>
+                        <button type="button" class="time-btn" data-hour="14">2 PM</button>
+                        <button type="button" class="time-btn" data-hour="15">3 PM</button>
+                        <button type="button" class="time-btn" data-hour="16">4 PM</button>
+                        <button type="button" class="time-btn" data-hour="17">5 PM</button>
+                        <button type="button" class="time-btn" data-hour="18">6 PM</button>
+                        <button type="button" class="time-btn" data-hour="19">7 PM</button>
+                        <button type="button" class="time-btn" data-hour="20">8 PM</button>
+                        <button type="button" class="time-btn" data-hour="21">9 PM</button>
+                        <button type="button" class="time-btn" data-hour="22">10 PM</button>
+                        <button type="button" class="time-btn" data-hour="23">11 PM</button>
+                    </div>
+                    <input type="hidden" id="cooldownHour">
+                    <input type="hidden" id="cooldownId">
+                    <button class="btn btn-primary" onclick="setCooldown()">Set Time</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="deleteModal" class="modal">
+            <div class="modal-content modal-small">
+                <h2>Confirm Delete</h2>
+                <p>Are you sure you want to delete this account? This action cannot be undone.</p>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                    <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+                </div>
             </div>
         </div>
     </div>

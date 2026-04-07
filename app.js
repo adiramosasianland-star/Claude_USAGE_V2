@@ -1,20 +1,25 @@
 const SUPABASE_URL = 'https://xihjreochxbzpgmpppzr.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_dQK0SimPFn9YpIcDIflKWA_W32818kP';
 const API = `${SUPABASE_URL}/rest/v1/accounts`;
+const AUTH_URL = `${SUPABASE_URL}/auth/v1`;
 
-const headers = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-};
-
+let currentSession = null;
 let accountToDelete = null;
 
-// ── INIT ────────────────────────────────────────────────────────────────────
+// ── AUTH HEADERS ─────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadAccounts();
-    setInterval(loadAccounts, 30000);
+function getHeaders(session = currentSession) {
+    return {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${session ? session.access_token : SUPABASE_KEY}`,
+    };
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await restoreSession();
 
     document.querySelectorAll('.time-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -29,13 +34,120 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.id === 'cooldownModal') closeCooldownModal();
         if (e.target.id === 'deleteModal') closeDeleteModal();
     });
+
+    document.getElementById('loginForm').addEventListener('keydown', e => {
+        if (e.key === 'Enter') login();
+    });
 });
 
-// ── DATA ─────────────────────────────────────────────────────────────────────
+// ── SESSION ───────────────────────────────────────────────────────────────────
+
+async function restoreSession() {
+    const stored = localStorage.getItem('sb_session');
+    if (!stored) return showLogin();
+
+    const session = JSON.parse(stored);
+
+    // Check if token is expired
+    if (Date.now() / 1000 > session.expires_at) {
+        const refreshed = await refreshSession(session.refresh_token);
+        if (!refreshed) return showLogin();
+    } else {
+        currentSession = session;
+        showApp();
+    }
+}
+
+async function refreshSession(refresh_token) {
+    try {
+        const res = await fetch(`${AUTH_URL}/token?grant_type=refresh_token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+            body: JSON.stringify({ refresh_token }),
+        });
+        if (!res.ok) return false;
+        const data = await res.json();
+        currentSession = data;
+        localStorage.setItem('sb_session', JSON.stringify(data));
+        showApp();
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// ── LOGIN / LOGOUT ────────────────────────────────────────────────────────────
+
+async function login() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const btn = document.getElementById('loginBtn');
+    const error = document.getElementById('loginError');
+
+    if (!email || !password) {
+        error.textContent = 'Please enter your email and password.';
+        return;
+    }
+
+    btn.textContent = 'Signing in...';
+    btn.disabled = true;
+    error.textContent = '';
+
+    try {
+        const res = await fetch(`${AUTH_URL}/token?grant_type=password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+            body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error_description || data.msg || 'Login failed');
+
+        currentSession = data;
+        localStorage.setItem('sb_session', JSON.stringify(data));
+        showApp();
+    } catch (err) {
+        error.textContent = err.message;
+    } finally {
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+    }
+}
+
+async function logout() {
+    try {
+        await fetch(`${AUTH_URL}/logout`, {
+            method: 'POST',
+            headers: getHeaders(),
+        });
+    } catch {}
+
+    currentSession = null;
+    localStorage.removeItem('sb_session');
+    showLogin();
+}
+
+// ── UI TOGGLE ─────────────────────────────────────────────────────────────────
+
+function showLogin() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+}
+
+function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    loadAccounts();
+    setInterval(loadAccounts, 30000);
+}
+
+// ── DATA ──────────────────────────────────────────────────────────────────────
 
 async function loadAccounts() {
     try {
-        const res = await fetch(`${API}?select=*&order=cooldown_until.asc.nullsfirst`, { headers });
+        const res = await fetch(`${API}?select=*&order=cooldown_until.asc.nullsfirst`, { headers: getHeaders() });
+        if (res.status === 401) return logout();
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         renderAccounts(data);
@@ -51,9 +163,10 @@ async function addAccount() {
     try {
         const res = await fetch(API, {
             method: 'POST',
-            headers: { ...headers, 'Prefer': 'return=minimal' },
+            headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
             body: JSON.stringify({ email }),
         });
+        if (res.status === 401) return logout();
         if (!res.ok) {
             const err = await res.json();
             throw new Error(err.message || 'Failed to add account');
@@ -72,8 +185,9 @@ async function confirmDelete() {
     try {
         const res = await fetch(`${API}?id=eq.${accountToDelete}`, {
             method: 'DELETE',
-            headers,
+            headers: getHeaders(),
         });
+        if (res.status === 401) return logout();
         if (!res.ok) throw new Error('Failed to delete');
         closeDeleteModal();
         showToast('Account deleted');
@@ -97,9 +211,10 @@ async function setCooldown() {
     try {
         const res = await fetch(`${API}?id=eq.${id}`, {
             method: 'PATCH',
-            headers: { ...headers, 'Prefer': 'return=minimal' },
+            headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
             body: JSON.stringify({ cooldown_until }),
         });
+        if (res.status === 401) return logout();
         if (!res.ok) throw new Error('Failed to set cooldown');
         closeCooldownModal();
         showToast('Cooldown set');
@@ -113,9 +228,10 @@ async function clearCooldown(id) {
     try {
         const res = await fetch(`${API}?id=eq.${id}`, {
             method: 'PATCH',
-            headers: { ...headers, 'Prefer': 'return=minimal' },
+            headers: { ...getHeaders(), 'Prefer': 'return=minimal' },
             body: JSON.stringify({ cooldown_until: null }),
         });
+        if (res.status === 401) return logout();
         if (!res.ok) throw new Error('Failed to clear cooldown');
         showToast('Cooldown cleared');
         loadAccounts();
@@ -124,7 +240,7 @@ async function clearCooldown(id) {
     }
 }
 
-// ── RENDER ───────────────────────────────────────────────────────────────────
+// ── RENDER ────────────────────────────────────────────────────────────────────
 
 function renderAccounts(accounts) {
     const grid = document.getElementById('accountsGrid');
@@ -182,7 +298,7 @@ function getAccountStatus(account) {
     };
 }
 
-// ── MODALS ───────────────────────────────────────────────────────────────────
+// ── MODALS ────────────────────────────────────────────────────────────────────
 
 function showAddModal() { document.getElementById('addModal').style.display = 'block'; }
 function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
@@ -208,7 +324,7 @@ function closeDeleteModal() {
     document.getElementById('deleteModal').style.display = 'none';
 }
 
-// ── UTILS ────────────────────────────────────────────────────────────────────
+// ── UTILS ─────────────────────────────────────────────────────────────────────
 
 function formatDateTime(date) {
     return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });

@@ -270,3 +270,39 @@ body {
 }
 
 .toast.error { background: #dc3545; }
+
+/* Login Screen */
+#loginScreen {
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background: #F4F4F4;
+}
+
+.login-box {
+    background: white;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+.login-box h1 {
+    font-size: 22px;
+    color: #0C2B4E;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.login-subtitle {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+.login-error {
+    color: #dc3545;
+    font-size: 13px;
+    min-height: 18px;
+}
