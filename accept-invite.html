@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude · Accept Invite</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+    <div id="loadingScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+        <div style="color:var(--ink-3);font-size:13px;">Verifying invite...</div>
+    </div>
+
+    <div id="setPasswordScreen" style="display:none;min-height:100vh;align-items:center;justify-content:center;">
+        <div class="login-box">
+            <div class="login-mark"></div>
+            <h1>Set your password</h1>
+            <p class="login-subtitle">Choose a password to complete your account setup.</p>
+            <div class="form-group">
+                <label>New password</label>
+                <input type="password" id="newPassword" placeholder="Min. 8 characters" autocomplete="new-password">
+                <label>Confirm password</label>
+                <input type="password" id="confirmPassword" placeholder="Repeat password" autocomplete="new-password">
+                <div id="formError" class="login-error"></div>
+                <button id="submitBtn" class="btn btn-primary" onclick="setPassword()">
+                    <i data-lucide="check"></i>
+                    Set password & sign in
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="errorScreen" style="display:none;min-height:100vh;align-items:center;justify-content:center;">
+        <div class="login-box" style="text-align:center;">
+            <div style="width:32px;height:32px;background:var(--danger-dim);border-radius:var(--radius-sm);margin:0 auto 24px;display:flex;align-items:center;justify-content:center;">
+                <i data-lucide="x" style="width:16px;height:16px;color:var(--danger);"></i>
+            </div>
+            <h1 style="margin-bottom:8px;">Invalid invite</h1>
+            <p class="login-subtitle" id="errorMessage">This invite link is invalid or has expired.</p>
+            <a href="index.html" class="btn btn-ghost" style="margin-top:8px;width:100%;justify-content:center;">Back to sign in</a>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://xihjreochxbzpgmpppzr.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_dQK0SimPFn9YpIcDIflKWA_W32818kP';
+
+        let accessToken = null;
+
+        // ── THEME ─────────────────────────────────────────────────────────────
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+        }
+
+        // ── INIT ──────────────────────────────────────────────────────────────
+
+        document.addEventListener('DOMContentLoaded', () => {
+            applyTheme(localStorage.getItem('theme') || 'light');
+            if (window.lucide) lucide.createIcons();
+
+            document.getElementById('confirmPassword').addEventListener('keydown', e => {
+                if (e.key === 'Enter') setPassword();
+            });
+
+            parseInviteToken();
+        });
+
+        function parseInviteToken() {
+            // Supabase appends #access_token=...&type=invite to the URL
+            const hash   = window.location.hash.substring(1);
+            const params = new URLSearchParams(hash);
+            const token  = params.get('access_token');
+            const type   = params.get('type');
+
+            if (!token || type !== 'invite') {
+                return showError('This invite link is invalid or has already been used.');
+            }
+
+            accessToken = token;
+            show('setPasswordScreen');
+            setTimeout(() => document.getElementById('newPassword').focus(), 100);
+        }
+
+        // ── SET PASSWORD ──────────────────────────────────────────────────────
+
+        async function setPassword() {
+            const password = document.getElementById('newPassword').value;
+            const confirm  = document.getElementById('confirmPassword').value;
+            const errorEl  = document.getElementById('formError');
+
+            errorEl.textContent = '';
+
+            if (password.length < 8) {
+                errorEl.textContent = 'Password must be at least 8 characters.';
+                return;
+            }
+
+            if (password !== confirm) {
+                errorEl.textContent = 'Passwords do not match.';
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            btn.textContent = 'Saving...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                    body: JSON.stringify({ password }),
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.msg || data.message || 'Failed to set password');
+
+                // Save session so they land logged in on index
+                localStorage.setItem('sb_session', JSON.stringify({
+                    access_token: accessToken,
+                    user: data,
+                    expires_at: Math.floor(Date.now() / 1000) + 3600,
+                }));
+
+                showToast('Password set! Redirecting...');
+                setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+
+            } catch (err) {
+                errorEl.textContent = err.message;
+            } finally {
+                btn.innerHTML = '<i data-lucide="check"></i> Set password & sign in';
+                btn.disabled = false;
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+
+        // ── SCREENS ───────────────────────────────────────────────────────────
+
+        function show(id) {
+            ['loadingScreen', 'setPasswordScreen', 'errorScreen'].forEach(s => {
+                const el = document.getElementById(s);
+                el.style.display = s === id ? 'flex' : 'none';
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function showError(msg) {
+            document.getElementById('errorMessage').textContent = msg;
+            show('errorScreen');
+        }
+
+        // ── TOAST ─────────────────────────────────────────────────────────────
+
+        let toastTimer;
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className   = `toast show${type === 'error' ? ' error' : ''}`;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => { toast.className = 'toast'; }, 3000);
+        }
+    </script>
+</body>
+</html>
