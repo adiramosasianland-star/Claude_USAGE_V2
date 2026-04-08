@@ -180,18 +180,20 @@ async function showApp() {
 async function checkAdminStatus() {
     try {
         const userId = currentSession?.user?.id;
+        console.log('[admin check] userId:', userId);
         if (!userId) return;
         const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=is_admin&id=eq.${userId}`, {
             headers: getHeaders(),
         });
-        if (!res.ok) return;
         const data = await res.json();
+        console.log('[admin check] status:', res.status, 'data:', data);
+        if (!res.ok) return;
         if (data.length && data[0].is_admin) {
             const link = document.getElementById('usersNavLink');
             if (link) link.style.display = 'inline-flex';
             if (window.lucide) lucide.createIcons();
         }
-    } catch {}
+    } catch (e) { console.error('[admin check] error:', e); }
 }
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
