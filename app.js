@@ -36,6 +36,14 @@ function toggleTheme() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 
+// Redirect invite links to accept-invite page
+(function () {
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    if (params.get('type') === 'invite') {
+        window.location.replace('accept-invite.html' + window.location.hash);
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Restore theme
     const savedTheme = localStorage.getItem('theme') || 'light';
