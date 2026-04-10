@@ -49,7 +49,7 @@ exports.handler = async (event) => {
                 'apikey': SERVICE_KEY,
                 'Authorization': `Bearer ${SERVICE_KEY}`,
             },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({ email, redirect_to: 'https://claudeusage.netlify.app/accept-invite.html' }),
         });
 
         const inviteData = await inviteRes.json();
